@@ -471,6 +471,10 @@ class MainWindow(QMainWindow):
         self.act_quit.triggered.connect(self._quit)
         menu.addAction(self.act_autostart)
         menu.addAction(act_menu)
+        act_desktop = QAction("Add desktop shortcut", self)
+        act_desktop.setEnabled(IS_WINDOWS or IS_LINUX)
+        act_desktop.triggered.connect(self._add_desktop_shortcut)
+        menu.addAction(act_desktop)
         menu.addSeparator()
         menu.addAction(self.act_quit)
 
@@ -792,6 +796,13 @@ class MainWindow(QMainWindow):
         except (OSError, subprocess.SubprocessError) as exc:
             QMessageBox.warning(self, APP_NAME, f"Operation failed:\n{exc}")
 
+    def _add_desktop_shortcut(self) -> None:
+        try:
+            where = add_desktop_shortcut(self.app_icon)
+            self.log(f"Desktop shortcut created: {short_path(str(where))}")
+        except (OSError, subprocess.SubprocessError) as exc:
+            QMessageBox.warning(self, APP_NAME, f"Operation failed:\n{exc}")
+
     # ---------------- log ----------------
     def log(self, message: str) -> None:
         self.log_view.appendPlainText(f"{datetime.now():%H:%M:%S}  {message}")
@@ -872,30 +883,97 @@ def set_autostart(on: bool, icon: QIcon) -> None:
             AUTOSTART_FILE.unlink(missing_ok=True)
 
 
+def _windows_shortcut(link: Path) -> None:
+    """Create a .lnk shortcut to this program via PowerShell (no extra dependencies)."""
+    program, args = launch_command()
+    ps = (
+        "$s = (New-Object -ComObject WScript.Shell).CreateShortcut($env:LNK); "
+        "$s.TargetPath = $env:TARGET; $s.Arguments = $env:ARGS; "
+        "$s.WorkingDirectory = $env:WORKDIR; $s.Save()"
+    )
+    env = {
+        **os.environ,
+        "LNK": str(link),
+        "TARGET": program,
+        "ARGS": " ".join(f'"{a}"' for a in args),
+        "WORKDIR": str(Path(program).parent),
+    }
+    link.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+        env=env, check=True, capture_output=True,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+
+
+def desktop_dir() -> Path:
+    """The user's desktop folder, honouring localized names (e.g. ~/Scrivania)."""
+    if IS_LINUX:
+        try:
+            out = subprocess.run(["xdg-user-dir", "DESKTOP"], capture_output=True, text=True, check=True)
+            if out.stdout.strip():
+                return Path(out.stdout.strip())
+        except (OSError, subprocess.SubprocessError):
+            pass
+    if IS_WINDOWS:
+        try:
+            out = subprocess.run(
+                ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+                 "[Environment]::GetFolderPath('Desktop')"],
+                capture_output=True, text=True, check=True,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+            if out.stdout.strip():
+                return Path(out.stdout.strip())
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return Path.home() / "Desktop"
+
+
 def add_to_menu(icon: QIcon) -> Path:
     if IS_WINDOWS:
-        program, args = launch_command()
-        ps = (
-            "$s = (New-Object -ComObject WScript.Shell).CreateShortcut($env:LNK); "
-            "$s.TargetPath = $env:TARGET; $s.Arguments = $env:ARGS; "
-            "$s.WorkingDirectory = $env:WORKDIR; $s.Save()"
-        )
-        env = {
-            **os.environ,
-            "LNK": str(START_MENU_LINK),
-            "TARGET": program,
-            "ARGS": " ".join(f'"{a}"' for a in args),
-            "WORKDIR": str(Path(program).parent),
-        }
-        START_MENU_LINK.parent.mkdir(parents=True, exist_ok=True)
-        subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
-            env=env, check=True, capture_output=True,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-        )
+        _windows_shortcut(START_MENU_LINK)
         return START_MENU_LINK
     _write_desktop_file(MENU_FILE, tray=False, icon=icon)
     return MENU_FILE
+
+
+def add_desktop_shortcut(icon: QIcon) -> Path:
+    if IS_WINDOWS:
+        link = desktop_dir() / f"{APP_NAME}.lnk"
+        _windows_shortcut(link)
+        return link
+    link = desktop_dir() / "deeployerfree.desktop"
+    _write_desktop_file(link, tray=False, icon=icon)
+    link.chmod(0o755)
+    # GNOME/Cinnamon only launch desktop files marked as trusted
+    subprocess.run(["gio", "set", str(link), "metadata::trusted", "true"], capture_output=True)
+    return link
+
+
+def sync_launchers(icon: QIcon, first_run: bool) -> list[str]:
+    """Keep OS launchers pointing at the current program; create the menu entry on first run.
+
+    Returns log messages describing what changed.
+    """
+    messages: list[str] = []
+    try:
+        if IS_LINUX:
+            if first_run and not MENU_FILE.exists():
+                _write_desktop_file(MENU_FILE, tray=False, icon=icon)
+                messages.append("Added to the applications menu")
+            elif MENU_FILE.exists():
+                _write_desktop_file(MENU_FILE, tray=False, icon=icon)  # follows the program if it moved
+            if AUTOSTART_FILE.exists():
+                _write_desktop_file(AUTOSTART_FILE, tray=True, icon=icon)
+            desktop_link = desktop_dir() / "deeployerfree.desktop"
+            if desktop_link.exists():
+                _write_desktop_file(desktop_link, tray=False, icon=icon)
+        elif IS_WINDOWS and autostart_enabled():
+            set_autostart(True, icon)  # refresh the registry entry with the current path
+    except OSError as exc:
+        messages.append(f"Could not update launchers: {exc}")
+    return messages
 
 
 def main() -> int:
@@ -910,7 +988,12 @@ def main() -> int:
         QMessageBox.information(None, APP_NAME, "DeepLoyerFree is already running. Look for its icon in the system tray.")
         return 1
 
+    first_run = not CONFIG_FILE.exists()
     win = MainWindow()
+    for message in sync_launchers(win.app_icon, first_run):
+        win.log(message)
+    if first_run:
+        save_config(win.envs, win.monitoring)  # marks the first run as done
     if not ("--tray" in sys.argv and win.tray):
         win.show()
     return app.exec()

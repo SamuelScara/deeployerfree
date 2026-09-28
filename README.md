@@ -35,10 +35,13 @@ tar -xzf DeepLoyerFree-linux-x86_64.tar.gz
 ./DeepLoyerFree
 ```
 
-Then use **Options → Add to applications menu** to get a menu entry with its icon.
+On the first start, DeepLoyerFree adds itself to the applications menu, with its icon. From then
+on you can open it from there, and **Options → Add desktop shortcut** puts an icon on the desktop.
+Linux executables cannot carry an icon themselves, so the file manager always shows a generic
+icon for the `DeepLoyerFree` file: use the menu entry or the desktop shortcut instead.
 
 **Windows**: double-click `DeepLoyerFree-windows-x86_64.exe`. Use **Options → Add to Start menu**
-to find it in the Start menu from then on.
+or **Add desktop shortcut** to find it more easily.
 
 **macOS**: unzip the file and move `DeepLoyerFree.app` to *Applications*. The first time,
 right-click it and choose *Open*, because the app is not signed. macOS support is experimental:
@@ -105,9 +108,11 @@ From the **Options** menu:
 
 - **Start at login** starts DeepLoyerFree in the tray every time you log in
 - **Add to applications menu** (Linux) / **Add to Start menu** (Windows) adds a launcher
+- **Add desktop shortcut** puts an icon on the desktop
 
-Both remember the current location of the program: if you move it, untick and tick
-the option again.
+If you move the program, just start it once from its new location: *Start at login* and, on Linux,
+the menu entry and desktop shortcut are updated automatically. On Windows, recreate the Start menu
+and desktop shortcuts from the **Options** menu.
 
 ## Configuration
 
