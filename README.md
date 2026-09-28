@@ -13,17 +13,36 @@ the new file is in place.
   (temporary file + rename), so Tomcat never picks up a half-written file
 - Optionally keeps **only the latest version** in the destination
 - Runs in the **system tray**, with notifications, and can **start at login**
-- Works on **Linux** and **Windows**
+- Works on **Linux** and **Windows**, with experimental **macOS** support
 
 ## Download
 
-Ready-to-run executables are available on the
-[Releases](../../releases) page. Nothing else needs to be installed.
+Pick the package for your system. The links always point to the latest release, and nothing
+else needs to be installed.
 
-| System  | File                           | How to start it                                   |
-| ------- | ------------------------------ | ------------------------------------------------- |
-| Linux   | `DeepLoyerFree-linux-x86_64`        | `chmod +x DeepLoyerFree-linux-x86_64`, then double-click it or run it |
-| Windows | `DeepLoyerFree-windows-x86_64.exe`  | Double-click it                                   |
+| System                | Download                                                                                     |
+| --------------------- | -------------------------------------------------------------------------------------------- |
+| Linux (x86_64)        | [DeepLoyerFree-linux-x86_64.tar.gz](../../releases/latest/download/DeepLoyerFree-linux-x86_64.tar.gz) |
+| Windows 10/11         | [DeepLoyerFree-windows-x86_64.exe](../../releases/latest/download/DeepLoyerFree-windows-x86_64.exe)   |
+| macOS (Apple Silicon) | [DeepLoyerFree-macos-arm64.zip](../../releases/latest/download/DeepLoyerFree-macos-arm64.zip)         |
+
+All versions are listed on the [Releases](../../releases) page.
+
+**Linux**: extract the archive and start the program:
+
+```bash
+tar -xzf DeepLoyerFree-linux-x86_64.tar.gz
+./DeepLoyerFree
+```
+
+Then use **Options → Add to applications menu** to get a menu entry with its icon.
+
+**Windows**: double-click `DeepLoyerFree-windows-x86_64.exe`. Use **Options → Add to Start menu**
+to find it in the Start menu from then on.
+
+**macOS**: unzip the file and move `DeepLoyerFree.app` to *Applications*. The first time,
+right-click it and choose *Open*, because the app is not signed. macOS support is experimental:
+*Start at login* and the menu launcher are not available there.
 
 The executable takes a couple of seconds to open: it unpacks itself at every start.
 
@@ -109,8 +128,8 @@ build.bat       # Windows -> dist\DeepLoyerFree.exe
 ```
 
 PyInstaller cannot cross-compile: build the Windows executable on Windows and the Linux one on
-Linux. The GitHub Actions workflow in `.github/workflows/release.yml` does both: push a tag
-such as `v1.0.0` and the executables are attached to a new release.
+Linux. The GitHub Actions workflow in `.github/workflows/release.yml` builds all three packages on
+GitHub's servers: push a tag such as `v1.0.0` and they are attached to a new release.
 
 ## Troubleshooting
 
@@ -118,7 +137,7 @@ such as `v1.0.0` and the executables are attached to a new release.
 A system library is missing. On Debian, Ubuntu or Mint: `sudo apt install libxcb-cursor0`.
 
 **Linux: `permission denied` when starting a script or the executable**
-The execute permission was lost during download: `chmod +x run.sh build.sh DeepLoyerFree-linux-x86_64`.
+The execute permission was lost during download: `chmod +x run.sh build.sh DeepLoyerFree`.
 
 **Windows: SmartScreen or Defender blocks the executable**
 Unsigned PyInstaller executables are sometimes flagged. Choose *More info → Run anyway*,
@@ -135,5 +154,5 @@ normal window: closing it quits the app.
 
 ## Requirements
 
-- Executables: Linux x86_64 (glibc 2.35 or newer) or Windows 10/11
+- Executables: Linux x86_64 (glibc 2.35 or newer), Windows 10/11 or macOS on Apple Silicon
 - From source: Python 3.10+ and PySide6 6.5+, or just uv
