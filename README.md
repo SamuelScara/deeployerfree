@@ -8,14 +8,12 @@ No more copying files by hand after every build: compile, and a few seconds late
 the new file is in place.
 
 - Multiple independent **environments**, each with its own source, file filter and destination
-- **Wildcards** in file names, so `geneweb-engine-*.jar` keeps working when the version changes
+- **Wildcards** in file names, so `my-library-*.jar` keeps working when the version changes
 - Waits until the **build has finished** before copying, and copies **atomically**
   (temporary file + rename), so Tomcat never picks up a half-written file
 - Optionally keeps **only the latest version** in the destination
 - Runs in the **system tray**, with notifications, and can **start at login**
 - Works on **Linux** and **Windows**
-
-> The user interface is in Italian.
 
 ## Download
 
@@ -55,39 +53,39 @@ Add `--tray` to start minimized to the system tray.
 
 ## How to use it
 
-1. Click **Aggiungi** to create an environment.
+1. Click **Add** to create an environment.
 2. Fill in the form:
 
-   | Field                   | Meaning                                                    | Example                         |
-   | ----------------------- | ---------------------------------------------------------- | ------------------------------- |
-   | Nome                    | A name you choose                                          | `Appalti`                       |
-   | Cartella sorgente       | Folder where the build writes the file                     | `~/Projects/Appalti/target`     |
-   | File da copiare         | File name, `*` and `?` allowed                              | `Appalti.war`, `geneweb-engine-*.jar` |
-   | Escludi                 | Optional, comma-separated patterns to skip                  | `*-sources.jar, *-javadoc.jar`  |
-   | Cartella destinazione   | Where the file is copied                                    | `~/tomcat/webapps`              |
-   | Attesa fine build       | How long the file must stay unchanged before it is copied  | `3 s`                           |
+   | Field               | Meaning                                                    | Example                              |
+   | ------------------- | ---------------------------------------------------------- | ------------------------------------ |
+   | Name                | A name you choose                                          | `My App`                             |
+   | Source folder       | Folder where the build writes the file                     | `~/projects/my-app/target`           |
+   | File to copy        | File name, `*` and `?` allowed                             | `my-app.war`, `my-library-*.jar`     |
+   | Exclude             | Optional, comma-separated patterns to skip                 | `*-sources.jar, *-javadoc.jar`       |
+   | Destination folder  | Where the file is copied                                   | `~/tomcat/webapps`                   |
+   | Wait for build end  | How long the file must stay unchanged before it is copied  | `3 s`                                |
 
    The bottom of the form shows which file would be copied right now, so you can check the
    filter immediately.
 3. Save. From now on, every time the build produces a newer file, it is copied automatically.
 
 The table shows the status of each environment and the time of the last copy; the log below
-shows every operation. **Copia adesso** forces a copy of the selected environment, and the
+shows every operation. **Copy now** forces a copy of the selected environment, and the
 checkbox in the first column enables or disables it.
 
 ### Keep only the latest version
 
-When the version is part of the file name (e.g. `geneweb-engine-2.60.0.jar`), tick
-**Tieni solo l'ultima versione**: after each copy, older files matching the filter are
+When the version is part of the file name (e.g. `my-library-2.1.0.jar`), tick
+**Keep only the latest version**: after each copy, older files matching the filter are
 removed from the destination. For safety, this option requires a filter that starts with a
 fixed name, so a pattern like `*.jar` can never wipe other files.
 
 ### Start automatically
 
-From the **Opzioni** menu:
+From the **Options** menu:
 
-- **Avvia all'accesso** starts DeepLoyerFree in the tray every time you log in
-- **Aggiungi al menu applicazioni** (Linux) / **Aggiungi al menu Start** (Windows) adds a launcher
+- **Start at login** starts DeepLoyerFree in the tray every time you log in
+- **Add to applications menu** (Linux) / **Add to Start menu** (Windows) adds a launcher
 
 Both remember the current location of the program: if you move it, untick and tick
 the option again.

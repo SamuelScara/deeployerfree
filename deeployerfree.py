@@ -7,8 +7,8 @@
 DeepLoyerFree — automatically copies build artifacts (war, jar, ...) to their destinations.
 
 Each "environment" defines:
-  - a source folder (e.g. .../Appalti/target)
-  - a file name filter (e.g. Appalti.war or geneweb-engine-*.jar)
+  - a source folder (e.g. .../my-app/target)
+  - a file name filter (e.g. my-app.war or my-library-*.jar)
   - a destination folder (e.g. .../apache-tomcat/webapps)
 
 The app polls the sources every few seconds. When a matching file is newer than
@@ -231,7 +231,7 @@ class DeployTask(QRunnable):
         tmp: Path | None = None
         try:
             if not dest.is_dir():
-                raise FileNotFoundError(f"la cartella di destinazione non esiste: {dest}")
+                raise FileNotFoundError(f"destination folder does not exist: {dest}")
             names = []
             for src in self.files:
                 t0 = time.monotonic()
@@ -241,7 +241,7 @@ class DeployTask(QRunnable):
                 tmp = None
                 size = human_size((dest / src.name).stat().st_size)
                 self.signals.log.emit(
-                    f"[{env.name}] Copiato {src.name} ({size}, {time.monotonic() - t0:.1f} s)"
+                    f"[{env.name}] Copied {src.name} ({size}, {time.monotonic() - t0:.1f} s)"
                 )
                 names.append(src.name)
 
@@ -249,7 +249,7 @@ class DeployTask(QRunnable):
                 for old in dest.iterdir():
                     if old.is_file() and old.name not in names and env.matches(old.name):
                         old.unlink()
-                        self.signals.log.emit(f"[{env.name}] Rimossa versione precedente {old.name}")
+                        self.signals.log.emit(f"[{env.name}] Removed previous version {old.name}")
 
             self.signals.finished.emit(env.id, True, ", ".join(names))
         except Exception as exc:  # noqa: BLE001 - any error must be shown to the user
@@ -265,33 +265,33 @@ class EnvDialog(QDialog):
     def __init__(self, parent: QWidget, env: Environment | None = None):
         super().__init__(parent)
         self._env = env
-        self.setWindowTitle("Modifica ambiente" if env else "Nuovo ambiente")
+        self.setWindowTitle("Edit environment" if env else "New environment")
         self.setMinimumWidth(680)
 
         self.name = QLineEdit(env.name if env else "")
-        self.name.setPlaceholderText("es. Appalti")
+        self.name.setPlaceholderText("e.g. My App")
         self.source = QLineEdit(env.source if env else "")
-        self.source.setPlaceholderText("Cartella dove la build produce il file, es. .../Appalti/target")
+        self.source.setPlaceholderText("Folder where the build writes the file, e.g. .../my-app/target")
         self.pattern = QLineEdit(env.pattern if env else "")
-        self.pattern.setPlaceholderText("Appalti.war   oppure   geneweb-engine-*.jar")
+        self.pattern.setPlaceholderText("my-app.war   or   my-library-*.jar")
         self.exclude = QLineEdit(env.exclude if env else "")
-        self.exclude.setPlaceholderText("Facoltativo, separati da virgola: *-sources.jar, *-javadoc.jar")
+        self.exclude.setPlaceholderText("Optional, comma-separated: *-sources.jar, *-javadoc.jar")
         self.dest = QLineEdit(env.destination if env else "")
-        self.dest.setPlaceholderText("Dove copiarlo, es. .../apache-tomcat/webapps")
+        self.dest.setPlaceholderText("Where to copy it, e.g. .../apache-tomcat/webapps")
 
         self.stable = QSpinBox()
         self.stable.setRange(1, 300)
         self.stable.setSuffix(" s")
         self.stable.setValue(env.stable_seconds if env else 3)
-        self.stable.setToolTip("Il file viene copiato solo dopo che è rimasto invariato per questo tempo.")
+        self.stable.setToolTip("The file is copied only after it has stayed unchanged for this long.")
 
-        self.remove_old = QCheckBox("Tieni solo l'ultima versione in destinazione")
+        self.remove_old = QCheckBox("Keep only the latest version in the destination")
         self.remove_old.setChecked(env.remove_old if env else False)
         self.remove_old.setToolTip(
-            "Dopo la copia elimina dalla destinazione gli altri file che corrispondono al filtro.\n"
-            "Utile quando la versione è nel nome (es. geneweb-engine-*.jar)."
+            "After copying, delete the other files matching the filter from the destination.\n"
+            "Useful when the version is part of the file name (e.g. my-library-*.jar)."
         )
-        self.enabled = QCheckBox("Attivo")
+        self.enabled = QCheckBox("Enabled")
         self.enabled.setChecked(env.enabled if env else True)
 
         self.preview = QLabel()
@@ -299,19 +299,17 @@ class EnvDialog(QDialog):
         self.preview.setStyleSheet("color: palette(mid);")
 
         form = QFormLayout()
-        form.addRow("Nome", self.name)
-        form.addRow("Cartella sorgente", self._with_browse(self.source, "Scegli la cartella sorgente"))
-        form.addRow("File da copiare", self.pattern)
-        form.addRow("Escludi", self.exclude)
-        form.addRow("Cartella destinazione", self._with_browse(self.dest, "Scegli la cartella di destinazione"))
-        form.addRow("Attesa fine build", self.stable)
+        form.addRow("Name", self.name)
+        form.addRow("Source folder", self._with_browse(self.source, "Choose the source folder"))
+        form.addRow("File to copy", self.pattern)
+        form.addRow("Exclude", self.exclude)
+        form.addRow("Destination folder", self._with_browse(self.dest, "Choose the destination folder"))
+        form.addRow("Wait for build end", self.stable)
         form.addRow("", self.remove_old)
         form.addRow("", self.enabled)
         form.addRow("", self.preview)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
-        buttons.button(QDialogButtonBox.Save).setText("Salva")
-        buttons.button(QDialogButtonBox.Cancel).setText("Annulla")
         buttons.accepted.connect(self._validate)
         buttons.rejected.connect(self.reject)
 
@@ -328,7 +326,7 @@ class EnvDialog(QDialog):
         box = QWidget()
         row = QHBoxLayout(box)
         row.setContentsMargins(0, 0, 0, 0)
-        btn = QPushButton("Sfoglia…")
+        btn = QPushButton("Browse…")
 
         def pick() -> None:
             start = str(Path(edit.text()).expanduser()) if edit.text() else str(Path.home())
@@ -357,40 +355,40 @@ class EnvDialog(QDialog):
     def _update_preview(self) -> None:
         env = self.build()
         if not env.source or not env.pattern:
-            self.preview.setText("Indica cartella sorgente e file per vedere cosa verrà copiato.")
+            self.preview.setText("Enter a source folder and a file name to preview what will be copied.")
             return
         try:
             files = find_candidates(env)
         except OSError:
-            self.preview.setText("La cartella sorgente non esiste ancora. Va bene se la crea la build.")
+            self.preview.setText("The source folder does not exist yet. That is fine if the build creates it.")
             return
         if files:
-            self.preview.setText("Adesso verrebbe copiato: " + ", ".join(f.name for f in files))
+            self.preview.setText("Would be copied now: " + ", ".join(f.name for f in files))
         else:
-            self.preview.setText("Nessun file corrisponde al momento. Normale se non hai ancora compilato.")
+            self.preview.setText("No matching file right now. That is normal if you have not built yet.")
 
     def _validate(self) -> None:
         env = self.build()
         error = None
         if not env.name:
-            error = "Dai un nome all'ambiente."
+            error = "Give the environment a name."
         elif not env.source or not env.destination:
-            error = "Indica sia la cartella sorgente sia quella di destinazione."
+            error = "Enter both the source and the destination folder."
         elif not env.pattern:
-            error = "Indica il file da copiare, ad esempio Appalti.war."
+            error = "Enter the file to copy, for example my-app.war."
         elif "/" in env.pattern or "\\" in env.pattern:
-            error = "Nel campo «File da copiare» va solo il nome del file, non un percorso."
+            error = "'File to copy' must be a file name, not a path."
         elif not env.dest_path.is_dir():
-            error = f"La cartella di destinazione non esiste:\n{env.dest_path}"
+            error = f"The destination folder does not exist:\n{env.dest_path}"
         elif env.source_path.resolve() == env.dest_path.resolve():
-            error = "Sorgente e destinazione devono essere cartelle diverse."
+            error = "Source and destination must be different folders."
         elif env.remove_old and env.pattern[0] in "*?[":
             error = (
-                "Con «Tieni solo l'ultima versione» il filtro deve iniziare con un nome fisso "
-                "(es. geneweb-engine-*.jar), altrimenti rischi di cancellare altri file in destinazione."
+                "With 'Keep only the latest version' the filter must start with a fixed name "
+                "(e.g. my-library-*.jar), otherwise other files in the destination could be deleted."
             )
         if error:
-            QMessageBox.warning(self, "Controlla i dati", error)
+            QMessageBox.warning(self, "Check your input", error)
             return
         self.accept()
 
@@ -399,7 +397,7 @@ class EnvDialog(QDialog):
 # Main window
 # --------------------------------------------------------------------------- #
 class MainWindow(QMainWindow):
-    COLS = ["Attivo", "Nome", "File", "Sorgente", "Destinazione", "Stato", "Ultima copia"]
+    COLS = ["Enabled", "Name", "File", "Source", "Destination", "Status", "Last copy"]
 
     def __init__(self) -> None:
         super().__init__()
@@ -427,22 +425,22 @@ class MainWindow(QMainWindow):
         self.timer.timeout.connect(self._poll)
         self.timer.start(POLL_MS)
 
-        self.log(f"Avviato. Configurazione in {short_path(str(CONFIG_FILE))}")
+        self.log(f"Started. Configuration file: {short_path(str(CONFIG_FILE))}")
         if not self.envs:
-            self.log("Nessun ambiente configurato: premi «Aggiungi» per crearne uno.")
+            self.log("No environments yet: click 'Add' to create one.")
 
     # ---------------- UI ----------------
     def _build_ui(self) -> None:
         st = self.style()
-        tb = self.addToolBar("Azioni")
+        tb = self.addToolBar("Actions")
         tb.setMovable(False)
         tb.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
 
-        self.act_add = QAction(st.standardIcon(QStyle.SP_FileDialogNewFolder), "Aggiungi", self)
-        self.act_edit = QAction(st.standardIcon(QStyle.SP_FileDialogDetailedView), "Modifica", self)
-        self.act_del = QAction(st.standardIcon(QStyle.SP_TrashIcon), "Rimuovi", self)
-        self.act_now = QAction(st.standardIcon(QStyle.SP_MediaPlay), "Copia adesso", self)
-        self.act_monitor = QAction("Monitoraggio attivo", self)
+        self.act_add = QAction(st.standardIcon(QStyle.SP_FileDialogNewFolder), "Add", self)
+        self.act_edit = QAction(st.standardIcon(QStyle.SP_FileDialogDetailedView), "Edit", self)
+        self.act_del = QAction(st.standardIcon(QStyle.SP_TrashIcon), "Remove", self)
+        self.act_now = QAction(st.standardIcon(QStyle.SP_MediaPlay), "Copy now", self)
+        self.act_monitor = QAction("Monitoring", self)
         self.act_monitor.setCheckable(True)
         self.act_monitor.setChecked(self.monitoring)
 
@@ -459,16 +457,16 @@ class MainWindow(QMainWindow):
         tb.addSeparator()
         tb.addAction(self.act_monitor)
 
-        menu = self.menuBar().addMenu("Opzioni")
-        self.act_autostart = QAction("Avvia all'accesso", self)
+        menu = self.menuBar().addMenu("Options")
+        self.act_autostart = QAction("Start at login", self)
         self.act_autostart.setCheckable(True)
         self.act_autostart.setChecked(autostart_enabled())
         self.act_autostart.setEnabled(IS_WINDOWS or IS_LINUX)
         self.act_autostart.toggled.connect(self._toggle_autostart)
-        act_menu = QAction("Aggiungi al menu Start" if IS_WINDOWS else "Aggiungi al menu applicazioni", self)
+        act_menu = QAction("Add to Start menu" if IS_WINDOWS else "Add to applications menu", self)
         act_menu.setEnabled(IS_WINDOWS or IS_LINUX)
         act_menu.triggered.connect(self._add_to_menu)
-        self.act_quit = QAction("Esci", self)
+        self.act_quit = QAction("Quit", self)
         self.act_quit.setShortcut("Ctrl+Q")
         self.act_quit.triggered.connect(self._quit)
         menu.addAction(self.act_autostart)
@@ -508,7 +506,7 @@ class MainWindow(QMainWindow):
         self.tray = QSystemTrayIcon(self.app_icon, self)
         self.tray.setToolTip(APP_NAME)
         menu = QMenu(self)
-        act_show = QAction("Mostra finestra", self)
+        act_show = QAction("Show window", self)
         act_show.triggered.connect(self._show_window)
         menu.addAction(act_show)
         menu.addAction(self.act_monitor)
@@ -536,7 +534,7 @@ class MainWindow(QMainWindow):
             event.ignore()
             self.hide()
             if not self._tray_hint_shown:
-                self.tray.showMessage(APP_NAME, "Continuo a lavorare qui. Per chiudere usa Esci.",
+                self.tray.showMessage(APP_NAME, "Still running here. Use Quit to close it.",
                                       QSystemTrayIcon.Information, 4000)
                 self._tray_hint_shown = True
             return
@@ -546,7 +544,7 @@ class MainWindow(QMainWindow):
         self._quitting = True
         self.timer.stop()
         if self.busy:
-            self.log("Attendo la fine delle copie in corso…")
+            self.log("Waiting for running copies to finish…")
             self.pool.waitForDone(60_000)
         QApplication.instance().quit()
 
@@ -561,7 +559,7 @@ class MainWindow(QMainWindow):
             self.table.setItem(r, 0, chk)
             cells = (
                 (1, env.name, env.name),
-                (2, env.pattern, f"Escludi: {env.exclude}" if env.exclude else env.pattern),
+                (2, env.pattern, f"Exclude: {env.exclude}" if env.exclude else env.pattern),
                 (3, short_path(env.source), env.source),
                 (4, short_path(env.destination), env.destination),
             )
@@ -577,12 +575,12 @@ class MainWindow(QMainWindow):
 
     def _status_for(self, env: Environment) -> tuple[str, str]:
         if env.id in self.busy:
-            return "Copia in corso…", "busy"
+            return "Copying…", "busy"
         if not env.enabled:
-            return "Disattivato", "idle"
+            return "Disabled", "idle"
         if not self.monitoring:
-            return "In pausa", "idle"
-        return self.status.get(env.id, ("In ascolto", "idle"))
+            return "Paused", "idle"
+        return self.status.get(env.id, ("Watching", "idle"))
 
     def _update_status_cells(self) -> None:
         self.table.blockSignals(True)
@@ -598,8 +596,8 @@ class MainWindow(QMainWindow):
             self.table.item(r, 6).setText(self.last_copy.get(env.id, "—"))
         self.table.blockSignals(False)
         active = sum(1 for e in self.envs if e.enabled)
-        state = "attivo" if self.monitoring else "in pausa"
-        self.statusBar().showMessage(f"Monitoraggio {state} · {active} ambienti attivi su {len(self.envs)}")
+        state = "on" if self.monitoring else "paused"
+        self.statusBar().showMessage(f"Monitoring {state} · {active} of {len(self.envs)} environments enabled")
 
     def _selected_index(self) -> int | None:
         rows = self.table.selectionModel().selectedRows()
@@ -616,7 +614,7 @@ class MainWindow(QMainWindow):
         env = self.envs[item.row()]
         env.enabled = item.checkState() == Qt.Checked
         self._save()
-        self.log(f"[{env.name}] {'Attivato' if env.enabled else 'Disattivato'}")
+        self.log(f"[{env.name}] {'Enabled' if env.enabled else 'Disabled'}")
         self._update_status_cells()
 
     # ---------------- actions ----------------
@@ -624,7 +622,7 @@ class MainWindow(QMainWindow):
         try:
             save_config(self.envs, self.monitoring)
         except OSError as exc:
-            QMessageBox.critical(self, APP_NAME, f"Impossibile salvare la configurazione:\n{exc}")
+            QMessageBox.critical(self, APP_NAME, f"Could not save the configuration:\n{exc}")
 
     def _forget_state(self, env_id: str) -> None:
         for d in (self.prev_sig, self.failed_sig):
@@ -640,7 +638,7 @@ class MainWindow(QMainWindow):
             self._save()
             self._refresh_table()
             self.table.selectRow(len(self.envs) - 1)
-            self.log(f"[{env.name}] Ambiente creato")
+            self.log(f"[{env.name}] Environment created")
 
     def _edit(self) -> None:
         idx = self._selected_index()
@@ -653,7 +651,7 @@ class MainWindow(QMainWindow):
             self._save()
             self._refresh_table()
             self.table.selectRow(idx)
-            self.log(f"[{self.envs[idx].name}] Ambiente modificato")
+            self.log(f"[{self.envs[idx].name}] Environment updated")
 
     def _remove(self) -> None:
         idx = self._selected_index()
@@ -661,15 +659,15 @@ class MainWindow(QMainWindow):
             return
         env = self.envs[idx]
         answer = QMessageBox.question(
-            self, "Rimuovi ambiente",
-            f"Rimuovere «{env.name}»?\nI file già copiati restano dove sono.",
+            self, "Remove environment",
+            f"Remove '{env.name}'?\nFiles already copied stay where they are.",
         )
         if answer == QMessageBox.Yes:
             self.envs.pop(idx)
             self._forget_state(env.id)
             self._save()
             self._refresh_table()
-            self.log(f"[{env.name}] Ambiente rimosso")
+            self.log(f"[{env.name}] Environment removed")
 
     def _copy_now(self) -> None:
         idx = self._selected_index()
@@ -681,11 +679,11 @@ class MainWindow(QMainWindow):
         try:
             files = find_candidates(env)
         except OSError:
-            QMessageBox.warning(self, APP_NAME, f"La cartella sorgente non esiste:\n{env.source_path}")
+            QMessageBox.warning(self, APP_NAME, f"The source folder does not exist:\n{env.source_path}")
             return
         if not files:
             QMessageBox.information(
-                self, APP_NAME, f"Nessun file «{env.pattern}» in {short_path(env.source)}."
+                self, APP_NAME, f"No '{env.pattern}' file in {short_path(env.source)}."
             )
             return
         self._start_copy(env, files)
@@ -693,7 +691,7 @@ class MainWindow(QMainWindow):
     def _set_monitoring(self, on: bool) -> None:
         self.monitoring = on
         self._save()
-        self.log("Monitoraggio attivo" if on else "Monitoraggio in pausa")
+        self.log("Monitoring on" if on else "Monitoring paused")
         self._update_status_cells()
 
     # ---------------- polling loop ----------------
@@ -707,15 +705,15 @@ class MainWindow(QMainWindow):
 
     def _check_env(self, env: Environment, now: float) -> None:
         if not env.dest_path.is_dir():
-            self.status[env.id] = ("Destinazione non trovata", "error")
+            self.status[env.id] = ("Destination not found", "error")
             return
         try:
             files = find_candidates(env)
         except OSError:
-            self.status[env.id] = ("Sorgente non trovata (in attesa della build)", "wait")
+            self.status[env.id] = ("Source not found (waiting for the build)", "wait")
             return
         if not files:
-            self.status[env.id] = ("Nessun file da copiare", "idle")
+            self.status[env.id] = ("No file to copy", "idle")
             return
 
         ready: list[Path] = []
@@ -744,16 +742,16 @@ class MainWindow(QMainWindow):
         if ready:
             self._start_copy(env, ready)
         elif waiting:
-            self.status[env.id] = ("Build in corso, attendo…", "wait")
+            self.status[env.id] = ("Build in progress, waiting…", "wait")
         elif not failed:
-            self.status[env.id] = ("Aggiornato", "ok")
+            self.status[env.id] = ("Up to date", "ok")
 
     def _start_copy(self, env: Environment, files: list[Path]) -> None:
         task = DeployTask(env, files)
         task.signals.log.connect(self.log)
         task.signals.finished.connect(self._on_copy_finished)
         self.busy[env.id] = task
-        self.log(f"[{env.name}] Copio {', '.join(f.name for f in files)} → {short_path(env.destination)}")
+        self.log(f"[{env.name}] Copying {', '.join(f.name for f in files)} → {short_path(env.destination)}")
         self._update_status_cells()
         self.pool.start(task)
 
@@ -762,37 +760,37 @@ class MainWindow(QMainWindow):
         env = next((e for e in self.envs if e.id == env_id), None)
         name = env.name if env else (task.env.name if task else env_id)
         if ok:
-            self.status[env_id] = ("Aggiornato", "ok")
+            self.status[env_id] = ("Up to date", "ok")
             self.last_copy[env_id] = datetime.now().strftime("%H:%M:%S")
             if task:
                 for path in task.sigs:
                     self.failed_sig.pop((env_id, path), None)
             if self.tray and not self.isVisible():
-                self.tray.showMessage(APP_NAME, f"{name}: copiato {message}", QSystemTrayIcon.Information, 3000)
+                self.tray.showMessage(APP_NAME, f"{name}: copied {message}", QSystemTrayIcon.Information, 3000)
         else:
-            self.status[env_id] = (f"Errore: {message}", "error")
-            self.log(f"[{name}] Errore: {message}")
+            self.status[env_id] = (f"Error: {message}", "error")
+            self.log(f"[{name}] Error: {message}")
             if task:
                 for path, sig in task.sigs.items():
                     self.failed_sig[(env_id, path)] = sig
             if self.tray:
-                self.tray.showMessage(APP_NAME, f"{name}: copia non riuscita", QSystemTrayIcon.Warning, 5000)
+                self.tray.showMessage(APP_NAME, f"{name}: copy failed", QSystemTrayIcon.Warning, 5000)
         self._update_status_cells()
 
     # ---------------- autostart and menu ----------------
     def _toggle_autostart(self, on: bool) -> None:
         try:
             set_autostart(on, self.app_icon)
-            self.log("Avvio all'accesso attivato" if on else "Avvio all'accesso disattivato")
+            self.log("Start at login enabled" if on else "Start at login disabled")
         except OSError as exc:
-            QMessageBox.warning(self, APP_NAME, f"Operazione non riuscita:\n{exc}")
+            QMessageBox.warning(self, APP_NAME, f"Operation failed:\n{exc}")
 
     def _add_to_menu(self) -> None:
         try:
             where = add_to_menu(self.app_icon)
-            self.log(f"Collegamento creato: {short_path(str(where))}")
+            self.log(f"Launcher created: {short_path(str(where))}")
         except (OSError, subprocess.SubprocessError) as exc:
-            QMessageBox.warning(self, APP_NAME, f"Operazione non riuscita:\n{exc}")
+            QMessageBox.warning(self, APP_NAME, f"Operation failed:\n{exc}")
 
     # ---------------- log ----------------
     def log(self, message: str) -> None:
@@ -831,7 +829,7 @@ def _write_desktop_file(path: Path, tray: bool, icon: QIcon) -> None:
         "[Desktop Entry]\n"
         "Type=Application\n"
         f"Name={APP_NAME}\n"
-        "Comment=Copia automatica dei file di build\n"
+        "Comment=Automatic copy of build artifacts\n"
         f"Exec={_quoted(program, args)}\n"
         f"Icon={ICON_FILE}\n"
         "Terminal=false\n"
@@ -909,7 +907,7 @@ def main() -> int:
     lock = QLockFile(str(CONFIG_DIR / "deeployerfree.lock"))
     lock.setStaleLockTime(0)
     if not lock.tryLock(100):
-        QMessageBox.information(None, APP_NAME, "DeepLoyerFree è già aperto. Cercalo tra le icone della barra di sistema.")
+        QMessageBox.information(None, APP_NAME, "DeepLoyerFree is already running. Look for its icon in the system tray.")
         return 1
 
     win = MainWindow()
