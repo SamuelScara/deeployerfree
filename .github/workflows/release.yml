@@ -1,0 +1,53 @@
+# Builds standalone executables for Linux and Windows.
+# - Push a tag like v1.0.0 to publish them in a GitHub Release.
+# - Or run it manually from the Actions tab to just download the build artifacts.
+name: Build executables
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Older Ubuntu = older glibc, so the binary also runs on older distros
+          - os: ubuntu-22.04
+            artifact: DeepLoyerFree-linux-x86_64
+            binary: dist/DeepLoyerFree
+          - os: windows-latest
+            artifact: DeepLoyerFree-windows-x86_64.exe
+            binary: dist/DeepLoyerFree.exe
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Build with PyInstaller
+        run: >
+          uv run --python 3.12 --with pyside6 --with pyinstaller
+          pyinstaller --onefile --windowed --noconfirm
+          --name DeepLoyerFree --icon deeployerfree.ico deeployerfree.py
+
+      - name: Rename binary
+        shell: bash
+        run: mv "${{ matrix.binary }}" "${{ matrix.artifact }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.artifact }}
